@@ -3,47 +3,54 @@
 require 'vendor/autoload.php';
 use GuzzleHttp\Client;
 
-function body($url){
-    $client = new Client();
+/*
+1. Pegar os parametros passados no cli
+2. Coisar os parametros na url /estado/cidade
+3. Pegar o conteudo da pagina pertencente a PORRA da url
+4. Achar a desgraca da tempertura dentro do conteudo da pagina
+5. Retornar a temperatura
+6. Retornar o horario da requisicao
+7. Retornar o local
 
-    $res = $client->request('GET', $url);
+eh isso!!!
+*/
 
-    $status = $res->getStatusCode();
-    
-    if($status != 200){
-        throw new Exception('Status Code: '.$status);
+function getLocal($params, $local){
+    for($i=0; $i<count($params); $i++){
+        if($params[$i]=="-c" && $local=="city"){
+            $local = $params[$i+1];
+        }
+        else if($params[$i] == "-s" && $local=="state"){
+            $local = $params[$i+1];
+        }
     }
-
-    $body = $res->getBody();
-    return $body;
-};
-
-$c = "porto-alegre";
-$e = "rs";
-
-$url = "http://tempo.clic.com.br/".$e."/".$c;;
-
-
-try{
-    $content = body($url);
-
-} catch (Exception $x) {
-    echo "Erro: ", $x->getMessage(), "\n";
+    return $local;
 }
 
-function clear($content){
-    $body = substr($content, strpos($content, "temperature_now"));
-    $body = substr($body, 0, 41);
-    $body = substr($body, -4);
-    return $body;
+function getLocalUrl($params){
+    return "http://tempo.clic.com.br/".getLocal($params, "state")."/".getLocal($params, "city");
 }
 
-$t = clear($content);
+function getPageContent($localUrl){
+    $client = new Client();
+    $app = $client->request('GET', $localUrl);
 
-function weather($t, $c, $e){
-    $d = date("H:i");
-    $c = str_replace("-", " ", $c);
-    echo "Temperatura: ".$t."\n".ucwords($c).", ".$d."\n";
+    return $app->getBody();
 }
 
-weather($t, $c, $e);
+function getTemperature($pageContent){
+    $temperature = substr($pageContent, strpos($pageContent, "temperature_now"));
+    $temperature = substr($temperature, 0, 41);
+    $temperature = substr($temperature, -4);
+    return $temperature;
+}
+
+function returnContent($temperature, $params){
+    $city = ucwords(str_replace("-", " ", getLocal($params, "city")));
+    $requestTime = date("H:i");
+    echo "Temperatura: ".$temperature."C\n".$city.", ".$requestTime."\n";
+}
+
+$temperature = getTemperature(getPageContent(getLocalUrl($argv)));
+
+echo returnContent($temperature, $argv);
